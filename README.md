@@ -1,20 +1,92 @@
 # CollecBox — Application Android Native
 
-> Application Android native développée pour le TP M2 Informatique (Université de Corse, 2026).
+> Application Android native développée pour le TP M2 Informatique (Université de Corse, 2026).  
+> Sujet : **"CollecBox" — Gestionnaire de collection nomade (Vinyles, Mangas, Jeux vidéo, BD)**.  
 > Port de la PWA CollecBox en application native Kotlin + Jetpack Compose.
+
+---
+
+## 🚀 Comment Construire et Lancer l'Application
+
+### Prérequis
+- **JDK 21** ou supérieur.
+- **Android Studio** (version Koala / Ladybug 2024.1+ recommandée) ou le SDK Android (API 35, build-tools 35.0.0).
+- Un appareil physique Android (avec Débogage USB activé) ou un Émulateur Android (AVD avec Google Play Services, API 26+).
+
+---
+
+### Méthode 1 : Avec Android Studio (Recommandé)
+
+1. **Ouvrir le projet** :
+   - Lancez Android Studio.
+   - Cliquez sur **File** → **Open...** et sélectionnez le dossier **`native/`** de ce dépôt.
+2. **Synchroniser Gradle** :
+   - Android Studio synchronise automatiquement les dépendances définies dans `build.gradle.kts`.
+   - Si besoin, cliquez sur l'icône de synchronisation (l'éléphant *"Sync Project with Gradle Files"*).
+3. **Lancer l'application** :
+   - Sélectionnez votre appareil connecté dans la liste déroulante en haut.
+   - Cliquez sur le bouton vert **Run ▶️** (ou utilisez le raccourci `Shift + F10`).
+   - L'application se compile, s'installe et s'ouvre automatiquement sur votre écran !
+
+---
+
+### Méthode 2 : En Ligne de Commande (Terminal)
+
+Depuis le dossier `native/` :
+
+```bash
+cd native
+
+# 1. Compiler l'APK Debug
+./gradlew assembleDebug
+
+# 2. Installer directement l'APK sur l'appareil connecté via adb
+./gradlew installDebug
+# (ou alternativement : adb install -r app/build/intermediates/apk/debug/app-debug.apk)
+
+# 3. Lancer l'application sur le téléphone
+adb shell am start -n corsica.universita.collecbox/.MainActivity
+```
+
+---
+
+### Bonus : Construire et Signer une Release (Slide 15 du TP)
+
+Pour générer un APK de production signé :
+
+```bash
+# 1. Générer le trousseau de clés (Keystore) release
+keytool -genkeypair -v -keystore release.jks -alias collecbox \
+  -keyalg RSA -keysize 2048 -validity 10000
+
+# 2. Configurer local.properties (fichier non commité)
+echo "RELEASE_STORE_FILE=release.jks" >> local.properties
+echo "RELEASE_STORE_PASSWORD=votre_mot_de_passe" >> local.properties
+echo "RELEASE_KEY_ALIAS=collecbox" >> local.properties
+echo "RELEASE_KEY_PASSWORD=votre_mot_de_passe" >> local.properties
+
+# 3. Compiler la version Release
+./gradlew assembleRelease
+
+# 4. Vérifier la signature de l'APK
+apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+
+# 5. Installer l'APK Release sur le téléphone
+adb install app/build/outputs/apk/release/app-release.apk
+```
 
 ---
 
 ## 🏗️ Architecture et Choix Techniques
 
-| Couche | Technologie | Rôle |
+| Couche | Technologie | Rôle & Justification architecturale |
 |---|---|---|
-| **UI** | Jetpack Compose + Material 3 | Interface réactive déclarative, thème sombre moderne, pas d'ANR. |
-| **État** | `ViewModel` + `StateFlow` | Survie aux rotations et aux recompositions, état hoisté. |
+| **UI** | Jetpack Compose + Material 3 | Interface déclarative réactive, thème sombre moderne, pas d'ANR. |
+| **État** | `ViewModel` + `StateFlow` + `SavedStateHandle` | Survie aux rotations et à la destruction du processus par l'OS (`am kill`). |
 | **Base Locale** | **Room Database** (`@Entity`, `@Dao`) | Source unique de vérité Local-First (`Flow<List<ItemEntity>>`). 3 graines initiales. |
-| **Préférences** | **DataStore (Preferences)** | Remplace `localStorage` pour les catégories sélectionnées et le jeton FCM. |
-| **Arrière-plan** | **WorkManager (`SyncWorker`)** | Remplace `Background Sync` : vidange de l'Outbox avec contrainte réseau `CONNECTED`. |
-| **Notifications** | **Firebase Cloud Messaging (FCM)** | Alertes push même application tuée, avec canal dédié et `PendingIntent`. |
+| **Préférences** | **DataStore (Preferences)** | Remplace `localStorage` pour les catégories et le jeton FCM de manière asynchrone sur `Dispatchers.IO`. |
+| **Arrière-plan** | **WorkManager (`SyncWorker`)** | Remplace `Background Sync` : vidange de l'Outbox avec contrainte réseau `NetworkType.CONNECTED`. |
+| **Notifications** | **Firebase Cloud Messaging (FCM)** | Réception des alertes même application tuée, canal haute priorité et `PendingIntent`. |
 | **App Link** | `https://collecbox.netlify.app/` | `autoVerify="true"` via `/.well-known/assetlinks.json`. |
 
 ---
@@ -22,34 +94,27 @@
 ## 🚀 Fonctionnalités Natives (Impossibles en PWA)
 
 1. **Widget d'accueil interactif (Jetpack Glance)** :
-   - Présent directement sur le launcher Android.
-   - Affiche en direct le nombre total d'objets, la dernière acquisition et un bouton d'action rapide `+ Scanner / Ajouter`.
-2. **Reconnaissance de texte par caméra (CameraX + ML Kit Text Recognition on-device)** :
-   - Analyse vidéo en temps réel à 30 fps sans latence.
-   - Détection automatique des titres et des tomes (ex: *"Tome 12"*, *"Vol. 3"*) pour pré-remplir la fiche.
-   - **100% hors-ligne**, sans appel API distant et sans dépendance réseau.
+   - Installé directement sur le launcher Android.
+   - Affiche les statistiques en direct de la collection et la dernière pièce ajoutée.
+   - Un clic sur le widget ouvre immédiatement le formulaire d'ajout d'objet.
+2. **Scanner de Code-barres / EAN (CameraX + ML Kit On-Device)** :
+   - Intégré directement à l'intérieur du champ Code-barres.
+   - Analyse vidéo temps réel à 30 fps via le modèle ML Kit embarqué (100% hors-ligne, accéléré par le GPU/NPU).
+   - Détection automatique avec retour haptique (vibration) et injection directe des chiffres dans le formulaire.
 
 ---
 
 ## 📊 Analytics (Les 3 événements obligatoires)
 
-- `item_created` (**Activation**) : Enregistrement du premier objet dans la collection.
-- `collection_filtered` (**Rétention**) : Filtrage par catégorie lors d'une session ultérieure.
-- `camera_ocr_scanned` (**Le natif**) : Utilisation du scanner IA temps réel ML Kit.
+Visualisables en direct dans la console Firebase via **Analytics** → **DebugView** :
+- `item_created` (**Activation**) : Premier geste utile (création d'un objet).
+- `collection_filtered` (**Rétention**) : Filtrage de la collection lors d'une session ultérieure.
+- `barcode_scanned` (**Le natif**) : Utilisation du scanner CameraX + ML Kit.
 
----
-
-## 🛠️ Configuration Firebase (Étape par étape)
-
-1. Aller sur [Firebase Console](https://console.firebase.google.com/) et créer un projet gratuit (ex: `collecbox-android`).
-2. Ajouter une application Android avec le package : `corsica.universita.collecbox`.
-3. Télécharger le fichier **`google-services.json`** et le placer dans le dossier `native/app/`.
-4. Activer **Cloud Messaging (FCM)** et **Google Analytics**.
-5. Pour tester les notifications :
-   - Lancez l'application sur le téléphone.
-   - Cliquez sur l'icône de cloche en haut à droite : le jeton FCM est copié dans le presse-papiers.
-   - Dans la console Firebase → **Messaging** → **Créer votre première campagne** (ou *Envoyer un message de test*), collez le jeton.
-   - L'application tuée reçoit la notification et un clic ouvre l'application !
+Pour activer le mode debug temps réel :
+```bash
+adb shell setprop debug.firebase.analytics.app corsica.universita.collecbox
+```
 
 ---
 
@@ -57,17 +122,21 @@
 
 ```bash
 # 1. Vérifier l'App Link
-adb shell pm verify-app-links --re-verify corsica.universita.collecbox
 adb shell pm get-app-links corsica.universita.collecbox
-# Résultat attendu : verified
+# Résultat attendu : collecbox.netlify.app: verified
 
-# 2. Simuler la mort du process en arrière-plan
+# 2. Ouvrir directement un lien d'objet via App Link
+adb shell am start -a android.intent.action.VIEW -d "https://collecbox.netlify.app/item/1"
+
+# 3. Simuler la mort du process en arrière-plan (SavedStateHandle)
 adb shell am kill corsica.universita.collecbox
 
-# 3. Simuler le mode Doze (veille batterie)
+# 4. Forcer l'arrêt complet de l'application
+adb shell am force-stop corsica.universita.collecbox
+
+# 5. Simuler le mode Doze (veille batterie)
 adb shell dumpsys deviceidle force-idle
 
-# 4. Ouvrir un lien deep link
-adb shell am start -a android.intent.action.VIEW -d "https://collecbox.netlify.app/item/1"
+# 6. Révoquer la permission caméra pour tester le flux de refus
+adb shell pm revoke corsica.universita.collecbox android.permission.CAMERA
 ```
-
