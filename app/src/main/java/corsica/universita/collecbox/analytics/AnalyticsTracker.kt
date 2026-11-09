@@ -46,7 +46,18 @@ class AnalyticsTracker(context: Context) {
     }
 
     /**
-     * Événement 3 : Le Natif (Reconnaissance de texte par caméra ML Kit on-device)
+     * Événement 3 : Le Natif (Scanner Code-barres / EAN CameraX + ML Kit on-device)
+     */
+    fun logBarcodeScanned(barcode: String) {
+        val bundle = Bundle().apply {
+            putString("barcode_value", barcode)
+            putInt("barcode_length", barcode.length)
+        }
+        log("barcode_scanned", bundle)
+    }
+
+    /**
+     * Événement 3 bis : Le Natif (Reconnaissance de texte par caméra ML Kit on-device)
      */
     fun logCameraOcrScanned(detectedWordsCount: Int, extractedVolume: String?) {
         val bundle = Bundle().apply {

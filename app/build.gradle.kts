@@ -133,13 +133,13 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
 
-    // Fonctionnalité Native 2 : CameraX + ML Kit Text Recognition on-device (OCR tranches de mangas/BD)
+    // Fonctionnalité Native 2 : CameraX + ML Kit Scanner de codes-barres on-device
     val cameraVersion = "1.4.0"
     implementation("androidx.camera:camera-core:$cameraVersion")
     implementation("androidx.camera:camera-camera2:$cameraVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraVersion")
     implementation("androidx.camera:camera-view:$cameraVersion")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

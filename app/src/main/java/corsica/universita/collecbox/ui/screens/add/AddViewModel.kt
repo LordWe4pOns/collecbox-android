@@ -20,6 +20,7 @@ data class AddItemUiState(
     val category: String = "mangas",
     val barcode: String = "",
     val details: String = "",
+    val isScanningBarcode: Boolean = false,
     val isScanningOcr: Boolean = false,
     val isSaved: Boolean = false,
     val isSaving: Boolean = false,
@@ -67,6 +68,22 @@ class AddViewModel(
     fun onDetailsChange(newDetails: String) {
         savedStateHandle["details"] = newDetails
         _uiState.update { it.copy(details = newDetails) }
+    }
+
+    fun setScanningBarcode(scanning: Boolean) {
+        _uiState.update { it.copy(isScanningBarcode = scanning) }
+    }
+
+    fun applyBarcodeResult(scannedBarcode: String) {
+        savedStateHandle["barcode"] = scannedBarcode
+        _uiState.update {
+            it.copy(
+                barcode = scannedBarcode,
+                isScanningBarcode = false
+            )
+        }
+        // Événement Analytics 3 : Le Natif (Scanner Code-barres ML Kit)
+        analyticsTracker.logBarcodeScanned(scannedBarcode)
     }
 
     fun setScanningOcr(scanning: Boolean) {

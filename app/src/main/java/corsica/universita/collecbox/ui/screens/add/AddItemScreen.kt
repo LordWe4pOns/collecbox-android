@@ -6,17 +6,16 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,22 +24,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
@@ -59,7 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import corsica.universita.collecbox.ui.camera.CameraPreviewWithOcr
+import corsica.universita.collecbox.ui.camera.CameraBarcodeScanner
 import corsica.universita.collecbox.ui.theme.CollecBoxAccent
 import corsica.universita.collecbox.ui.theme.CollecBoxDarkBg
 import corsica.universita.collecbox.ui.theme.CollecBoxPrimary
@@ -78,12 +74,12 @@ fun AddItemScreen(
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    // Gestion du cycle de permissions Android (Slide 13 du TP : Accordé, Rationale, Réglages)
+    // Gestion des permissions Android (Slide 13 du cours : Accordé, Rationale, Réglages)
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            viewModel.setScanningOcr(true)
+            viewModel.setScanningBarcode(true)
         } else {
             showRationaleDialog = true
         }
@@ -92,14 +88,14 @@ fun AddItemScreen(
     if (showRationaleDialog) {
         AlertDialog(
             onDismissRequest = { showRationaleDialog = false },
-            title = { Text("Permission Caméra nécessaire") },
-            text = { Text("La caméra est nécessaire pour scanner automatiquement la tranche des mangas/BD et les pochettes via le moteur ML Kit hors-ligne.") },
+            title = { Text("Permission Caméra requise") },
+            text = { Text("La caméra est nécessaire pour scanner automatiquement le code-barres (EAN-13, vinyle, manga) via ML Kit.") },
             confirmButton = {
                 TextButton(onClick = {
                     showRationaleDialog = false
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                 }) {
-                    Text("Réessayer")
+                    Text("Autoriser")
                 }
             },
             dismissButton = {
@@ -116,8 +112,8 @@ fun AddItemScreen(
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
-            title = { Text("Accès bloqué") },
-            text = { Text("Vous avez refusé la permission caméra. Veuillez l'activer manuellement dans les paramètres de l'application.") },
+            title = { Text("Accès caméra bloqué") },
+            text = { Text("La permission caméra a été refusée. Vous pouvez l'activer dans les réglages système ou continuer la saisie manuelle.") },
             confirmButton = {
                 TextButton(onClick = {
                     showSettingsDialog = false
@@ -131,30 +127,20 @@ fun AddItemScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showSettingsDialog = false }) {
-                    Text("Annuler")
+                    Text("Continuer manuellement")
                 }
             }
         )
     }
 
-    // Affichage plein écran de la caméra OCR
-    if (uiState.isScanningOcr) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            CameraPreviewWithOcr(
-                onTextExtracted = { title, details ->
-                    viewModel.applyOcrResult(title, details)
-                }
-            )
-            IconButton(
-                onClick = { viewModel.setScanningOcr(false) },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(24.dp)
-                    .background(Color(0x99000000), shape = RoundedCornerShape(50))
-            ) {
-                Icon(Icons.Default.Close, contentDescription = "Fermer", tint = Color.White)
-            }
-        }
+    // Affichage plein écran du scanner CameraX + ML Kit dès que le bouton est cliqué
+    if (uiState.isScanningBarcode) {
+        CameraBarcodeScanner(
+            onBarcodeScanned = { scannedBarcode ->
+                viewModel.applyBarcodeResult(scannedBarcode)
+            },
+            onClose = { viewModel.setScanningBarcode(false) }
+        )
         return
     }
 
@@ -190,46 +176,6 @@ fun AddItemScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Bouton vers la fonctionnalité native : Caméra OCR ML Kit
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CollecBoxSurface),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Reconnaissance de texte (ML Kit)",
-                            color = CollecBoxAccent,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            "Scannez la tranche ou le titre avec la caméra en temps réel",
-                            color = Color.LightGray,
-                            fontSize = 12.sp
-                        )
-                    }
-                    Button(
-                        onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) },
-                        colors = ButtonDefaults.buttonColors(containerColor = CollecBoxPrimary)
-                    ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Scanner")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
             Text(
                 "Catégorie",
                 color = Color.White,
@@ -277,16 +223,45 @@ fun AddItemScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Champ Code-barres
+            // Champ Code-barres / EAN avec bouton SCANNER TRÈS VISIBLE À DROITE
             OutlinedTextField(
                 value = uiState.barcode,
                 onValueChange = { viewModel.onBarcodeChange(it) },
-                label = { Text("Code-barres / EAN (optionnel)") },
-                placeholder = { Text("Ex: 9782344049020") },
+                label = { Text("Code-barres / EAN") },
+                placeholder = { Text("Scannez ou saisissez l'EAN...") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    Surface(
+                        onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) },
+                        shape = RoundedCornerShape(8.dp),
+                        color = CollecBoxPrimary,
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .height(38.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "Scanner le code-barres",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Scanner",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = CollecBoxSurface,
                     unfocusedContainerColor = CollecBoxSurface,
@@ -297,7 +272,7 @@ fun AddItemScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Champ Détails / Description
             OutlinedTextField(
@@ -318,7 +293,7 @@ fun AddItemScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Bouton de validation
             Button(
@@ -332,7 +307,7 @@ fun AddItemScreen(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(52.dp)
             ) {
                 Icon(Icons.Default.Save, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -345,4 +320,3 @@ fun AddItemScreen(
         }
     }
 }
-
