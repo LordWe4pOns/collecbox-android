@@ -1,7 +1,6 @@
 package corsica.universita.collecbox.widget
 
 import android.content.Context
-import android.content.Intent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,18 +90,13 @@ class CollecBoxGlanceWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 
-                        // Bouton d'action directe pour ouvrir l'ajout / scan
-                        val addIntent = Intent(context, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("openAdd", true)
-                        }
-
+                        // Bouton d'action directe pour ouvrir l'application
                         Box(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
                                 .background(Color(0xFF6366F1))
                                 .padding(vertical = 6.dp)
-                                .clickable(actionStartActivity(addIntent)),
+                                .clickable(actionStartActivity<MainActivity>()),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
