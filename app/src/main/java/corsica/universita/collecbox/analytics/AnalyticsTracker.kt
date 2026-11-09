@@ -24,6 +24,16 @@ class AnalyticsTracker(context: Context) {
     }
 
     /**
+     * Événement d'ouverture de session
+     */
+    fun logAppOpen() {
+        val bundle = Bundle().apply {
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        log("app_open", bundle)
+    }
+
+    /**
      * Événement 1 : Activation (Premier geste utile - Création d'un objet)
      */
     fun logItemCreated(category: String, isOffline: Boolean, hasOcr: Boolean) {
