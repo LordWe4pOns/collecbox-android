@@ -7,6 +7,8 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -31,7 +33,7 @@ import kotlinx.coroutines.flow.firstOrNull
 
 /**
  * Widget d'accueil interactif propulsé par Jetpack Glance (Fonctionnalité Native 1).
- * Impossible en PWA : les PWA ne peuvent pas injecter de RemoteViews sur le Launcher Android.
+ * Ouvre directement le formulaire d'ajout d'objet sur l'application.
  */
 class CollecBoxGlanceWidget : GlanceAppWidget() {
 
@@ -40,6 +42,10 @@ class CollecBoxGlanceWidget : GlanceAppWidget() {
         val totalCount = app?.repository?.allItems?.firstOrNull()?.size ?: 3
         val lastItem = app?.repository?.allItems?.firstOrNull()?.firstOrNull()
 
+        // Paramètre envoyé à MainActivity pour ouvrir directement le formulaire d'ajout
+        val openAddKey = ActionParameters.Key<Boolean>("openAdd")
+        val openAddAction = actionStartActivity<MainActivity>(actionParametersOf(openAddKey to true))
+
         provideContent {
             GlanceTheme {
                 Box(
@@ -47,7 +53,7 @@ class CollecBoxGlanceWidget : GlanceAppWidget() {
                         .fillMaxSize()
                         .background(Color(0xFF0F172A))
                         .padding(12.dp)
-                        .clickable(actionStartActivity<MainActivity>())
+                        .clickable(openAddAction)
                 ) {
                     Column(
                         modifier = GlanceModifier.fillMaxSize(),
@@ -90,17 +96,17 @@ class CollecBoxGlanceWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 
-                        // Bouton d'action directe pour ouvrir l'application
+                        // Bouton d'action directe pour ouvrir l'ajout / scan
                         Box(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
                                 .background(Color(0xFF6366F1))
-                                .padding(vertical = 6.dp)
-                                .clickable(actionStartActivity<MainActivity>()),
+                                .padding(vertical = 8.dp)
+                                .clickable(openAddAction),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "+ Scanner / Ajouter",
+                                text = "+ Scanner / Ajouter un objet",
                                 style = TextStyle(
                                     color = androidx.glance.unit.ColorProvider(Color.White),
                                     fontSize = 12.sp,
@@ -114,4 +120,3 @@ class CollecBoxGlanceWidget : GlanceAppWidget() {
         }
     }
 }
-
