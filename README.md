@@ -50,33 +50,6 @@ adb shell am start -n corsica.universita.collecbox/.MainActivity
 
 ---
 
-### Bonus : Construire et Signer une Release (Slide 15 du TP)
-
-Pour générer un APK de production signé :
-
-```bash
-# 1. Générer le trousseau de clés (Keystore) release
-keytool -genkeypair -v -keystore release.jks -alias collecbox \
-  -keyalg RSA -keysize 2048 -validity 10000
-
-# 2. Configurer local.properties (fichier non commité)
-echo "RELEASE_STORE_FILE=release.jks" >> local.properties
-echo "RELEASE_STORE_PASSWORD=votre_mot_de_passe" >> local.properties
-echo "RELEASE_KEY_ALIAS=collecbox" >> local.properties
-echo "RELEASE_KEY_PASSWORD=votre_mot_de_passe" >> local.properties
-
-# 3. Compiler la version Release
-./gradlew assembleRelease
-
-# 4. Vérifier la signature de l'APK
-apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
-
-# 5. Installer l'APK Release sur le téléphone
-adb install app/build/outputs/apk/release/app-release.apk
-```
-
----
-
 ## 🏗️ Architecture et Choix Techniques
 
 | Couche | Technologie | Rôle & Justification architecturale |
