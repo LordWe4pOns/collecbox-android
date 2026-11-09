@@ -10,10 +10,9 @@ import corsica.universita.collecbox.analytics.AnalyticsTracker
 import corsica.universita.collecbox.data.model.ItemEntity
 import corsica.universita.collecbox.data.repository.CollecBoxRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AddItemUiState(
@@ -38,67 +37,55 @@ class AddViewModel(
     private val analyticsTracker: AnalyticsTracker
 ) : ViewModel() {
 
-    private val isScanningOcr = MutableStateFlow(false)
-    private val isSaving = MutableStateFlow(false)
-    private val isSaved = MutableStateFlow(false)
-
-    // Lecture réactive depuis SavedStateHandle (restauré automatiquement par l'OS après un kill)
-    val uiState: StateFlow<AddItemUiState> = combine(
-        savedStateHandle.getStateFlow("title", ""),
-        savedStateHandle.getStateFlow("category", "mangas"),
-        savedStateHandle.getStateFlow("barcode", ""),
-        savedStateHandle.getStateFlow("details", ""),
-        savedStateHandle.getStateFlow("usedOcr", false),
-        isScanningOcr,
-        isSaving,
-        isSaved
-    ) { title, category, barcode, details, usedOcr, scanning, saving, saved ->
+    // Initialisation immédiate depuis SavedStateHandle (restauré après am kill)
+    private val _uiState = MutableStateFlow(
         AddItemUiState(
-            title = title,
-            category = category,
-            barcode = barcode,
-            details = details,
-            isScanningOcr = scanning,
-            isSaving = saving,
-            isSaved = saved,
-            usedOcr = usedOcr
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = AddItemUiState(
             title = savedStateHandle["title"] ?: "",
             category = savedStateHandle["category"] ?: "mangas",
             barcode = savedStateHandle["barcode"] ?: "",
-            details = savedStateHandle["details"] ?: ""
+            details = savedStateHandle["details"] ?: "",
+            usedOcr = savedStateHandle["usedOcr"] ?: false
         )
     )
+    val uiState: StateFlow<AddItemUiState> = _uiState.asStateFlow()
 
     fun onTitleChange(newTitle: String) {
         savedStateHandle["title"] = newTitle
+        _uiState.update { it.copy(title = newTitle) }
     }
 
     fun onCategoryChange(newCategory: String) {
         savedStateHandle["category"] = newCategory
+        _uiState.update { it.copy(category = newCategory) }
     }
 
     fun onBarcodeChange(newBarcode: String) {
         savedStateHandle["barcode"] = newBarcode
+        _uiState.update { it.copy(barcode = newBarcode) }
     }
 
     fun onDetailsChange(newDetails: String) {
         savedStateHandle["details"] = newDetails
+        _uiState.update { it.copy(details = newDetails) }
     }
 
     fun setScanningOcr(scanning: Boolean) {
-        isScanningOcr.value = scanning
+        _uiState.update { it.copy(isScanningOcr = scanning) }
     }
 
     fun applyOcrResult(extractedTitle: String, extractedDetails: String) {
         savedStateHandle["title"] = extractedTitle
         savedStateHandle["details"] = extractedDetails
         savedStateHandle["usedOcr"] = true
-        isScanningOcr.value = false
+
+        _uiState.update {
+            it.copy(
+                title = extractedTitle,
+                details = extractedDetails,
+                usedOcr = true,
+                isScanningOcr = false
+            )
+        }
 
         // Événement Analytics 3 : Le Natif (Camera OCR ML Kit)
         analyticsTracker.logCameraOcrScanned(
@@ -108,22 +95,17 @@ class AddViewModel(
     }
 
     fun saveItem(onSuccess: (Long) -> Unit) {
-        val currentTitle = savedStateHandle.get<String>("title") ?: ""
-        val currentCategory = savedStateHandle.get<String>("category") ?: "mangas"
-        val currentBarcode = savedStateHandle.get<String>("barcode") ?: ""
-        val currentDetails = savedStateHandle.get<String>("details") ?: ""
-        val currentUsedOcr = savedStateHandle.get<Boolean>("usedOcr") ?: false
+        val current = _uiState.value
+        if (current.title.isBlank() || current.isSaving) return
 
-        if (currentTitle.isBlank()) return
-
-        isSaving.value = true
+        _uiState.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
             val item = ItemEntity(
-                title = currentTitle.trim(),
-                category = currentCategory,
-                barcode = currentBarcode.trim(),
-                details = currentDetails.trim(),
+                title = current.title.trim(),
+                category = current.category,
+                barcode = current.barcode.trim(),
+                details = current.details.trim(),
                 createdAt = System.currentTimeMillis(),
                 isSynced = false
             )
@@ -134,17 +116,16 @@ class AddViewModel(
             analyticsTracker.logItemCreated(
                 category = item.category,
                 isOffline = true,
-                hasOcr = currentUsedOcr
+                hasOcr = current.usedOcr
             )
 
-            // Nettoyage de l'état sauvegardé après enregistrement réussi
+            // Réinitialisation de l'état persistant
             savedStateHandle["title"] = ""
             savedStateHandle["barcode"] = ""
             savedStateHandle["details"] = ""
             savedStateHandle["usedOcr"] = false
 
-            isSaving.value = false
-            isSaved.value = true
+            _uiState.update { it.copy(isSaving = false, isSaved = true) }
             onSuccess(id)
         }
     }
