@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">CollecBox</string>
+    <string name="channel_sync_name">Synchronisation CollecBox</string>
+    <string name="channel_sync_description">Notifications de synchronisation et alertes de nouveaux tomes ou sorties</string>
+    <string name="notification_title_sync">Synchronisation terminée 🌐</string>
+    <string name="widget_name">Aperçu CollecBox</string>
+    <string name="widget_description">Statistiques de votre collection et accès rapide</string>
+</resources>
+

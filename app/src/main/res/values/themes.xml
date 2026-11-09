@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.CollecBox" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/collecbox_bg</item>
+    </style>
+</resources>
+

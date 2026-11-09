@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "943566898408",
+    "project_id": "collecbox",
+    "storage_bucket": "collecbox.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:943566898408:android:6e12f1c8666f258da5f55d",
+        "android_client_info": {
+          "package_name": "corsica.universita.collecbox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKBbosLPCsowFdcuj85KsIsQbr-heq1wk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

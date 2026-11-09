@@ -1,0 +1,11 @@
+# Signature Release (Slide 15 du TP : Bonus signer une release)
+# À copier vers local.properties (qui est ignoré par Git)
+#
+# Générer la clé avec :
+# keytool -genkeypair -v -keystore release.jks -alias collecbox -keyalg RSA -keysize 2048 -validity 10000
+#
+# RELEASE_STORE_FILE=release.jks
+# RELEASE_STORE_PASSWORD=votre_mot_de_passe
+# RELEASE_KEY_ALIAS=collecbox
+# RELEASE_KEY_PASSWORD=votre_mot_de_passe
+
